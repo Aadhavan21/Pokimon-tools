@@ -45,7 +45,6 @@
       overflow-x: hidden;
     }
 
-    /* Subtle Pokeball grid pattern overlay */
     body::before {
       content: "";
       position: fixed;
@@ -307,7 +306,6 @@
       box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.85);
     }
 
-    /* Side dark vignette masks */
     .roulette-wrapper::before,
     .roulette-wrapper::after {
       content: "";
@@ -329,7 +327,6 @@
       background: linear-gradient(270deg, rgba(7, 13, 31, 0.92) 0%, rgba(7, 13, 31, 0) 100%);
     }
 
-    /* Highlighted Center Target Frame */
     .center-highlight {
       position: absolute;
       top: 8px;
@@ -420,6 +417,95 @@
       user-select: none;
       -webkit-user-drag: none;
       filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+    }
+
+    /* Base Stats Panel (shown after roulette stops) */
+    .base-stats-card {
+      display: none;
+      background: var(--card-inner);
+      border: 2px solid var(--yellow-accent);
+      border-radius: 14px;
+      padding: 14px 14px 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 18px rgba(255, 203, 5, 0.18);
+      animation: fadeIn 0.25s ease;
+    }
+
+    .base-stats-card.visible {
+      display: block;
+    }
+
+    .base-stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .base-stats-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.8px;
+      color: var(--yellow-accent);
+      text-transform: uppercase;
+    }
+
+    .base-stats-total {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--text-white);
+      background: rgba(255, 203, 5, 0.14);
+      border: 1px solid rgba(255, 203, 5, 0.45);
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+
+    .stat-bars-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: 74px 36px 1fr;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+    }
+
+    .stat-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .stat-val {
+      font-weight: 800;
+      color: var(--text-white);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-bar-bg {
+      height: 10px;
+      background: #14244b;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #243b75;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #2463eb 0%, var(--yellow-accent) 100%);
+      transition: width 0.35s ease;
     }
 
     /* Primary Action Button */
@@ -754,6 +840,15 @@
             <div class="roulette-track" id="rouletteTrack"></div>
           </div>
 
+          <!-- Selected Pokemon Base Stats (loaded from pokemon_stats.py after stopping) -->
+          <div class="base-stats-card" id="baseStatsCard" aria-live="polite">
+            <div class="base-stats-header">
+              <span class="base-stats-title" id="statsCardTitle">Base Stats</span>
+              <span class="base-stats-total" id="statsTotalBadge">BST: -</span>
+            </div>
+            <div class="stat-bars-list" id="statBarsList"></div>
+          </div>
+
           <!-- Action Button -->
           <button type="button" class="primary-btn" id="pickBtn" disabled>
             PICK A BIRD
@@ -923,7 +1018,6 @@
     let hasPickedOnce = false;
     let currentCardIndex = 0;
 
-    // Fallback list only used before Pyodide finishes loading so artwork preloads immediately
     const INITIAL_BIRDS_PREVIEW = [
       { name: "Pidgey", id: 16, gen: 1 },
       { name: "Spearow", id: 21, gen: 1 },
@@ -937,7 +1031,7 @@
       { name: "Wattrel", id: 940, gen: 9 }
     ];
 
-    const REPEATED_CYCLES = 12; // 120 cards in the track for smooth right-to-left scrolling
+    const REPEATED_CYCLES = 12;
 
     // DOM Elements
     const statusDot = document.getElementById("statusDot");
@@ -952,6 +1046,10 @@
     const winnerBanner = document.getElementById("winnerBanner");
     const winnerLabel = document.getElementById("winnerLabel");
     const winnerName = document.getElementById("winnerName");
+    const baseStatsCard = document.getElementById("baseStatsCard");
+    const statsCardTitle = document.getElementById("statsCardTitle");
+    const statsTotalBadge = document.getElementById("statsTotalBadge");
+    const statBarsList = document.getElementById("statBarsList");
     const pickBtn = document.getElementById("pickBtn");
 
     const damageForm = document.getElementById("damageForm");
@@ -981,7 +1079,6 @@
     tabBtnPicker.addEventListener("click", () => switchTab("picker"));
     tabBtnCalc.addEventListener("click", () => switchTab("calc"));
 
-    // Build Roulette Cards (NO Pokemon names displayed on cards!)
     function getArtworkUrl(dexId) {
       return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${dexId}.png`;
     }
@@ -1009,7 +1106,6 @@
         rouletteTrack.appendChild(card);
       }
 
-      // Position initially near start (index 10)
       currentCardIndex = birds.length;
       recenterTrackOnIndex(currentCardIndex);
     }
@@ -1022,7 +1118,6 @@
     function getTranslateXForCardIndex(cardIndex) {
       const viewportWidth = rouletteViewport.clientWidth;
       const cardWidth = getCardWidth();
-      // Center of cardIndex aligns with center of viewport
       return (viewportWidth / 2) - (cardIndex * cardWidth + cardWidth / 2);
     }
 
@@ -1037,42 +1132,69 @@
       }
     });
 
-    // Clear winner card highlight
     function clearCardHighlights() {
       const highlighted = rouletteTrack.querySelectorAll(".roulette-card.is-winner");
       highlighted.forEach((el) => el.classList.remove("is-winner"));
     }
 
-    // Smooth deceleration easing (quintic ease-out: fast start, gradual smooth slowdown)
     function easeOutQuint(t) {
       return 1 - Math.pow(1 - t, 5);
     }
 
-    // Spin Roulette using Python's choose_random_bird()
+    function renderBaseStats(stats) {
+      statsCardTitle.textContent = `${stats.name} Base Stats`;
+      statsTotalBadge.textContent = `BST: ${stats.total}`;
+
+      const rows = [
+        { label: "HP", value: stats.hp },
+        { label: "Attack", value: stats.attack },
+        { label: "Defense", value: stats.defense },
+        { label: "Sp. Atk", value: stats.sp_atk },
+        { label: "Sp. Def", value: stats.sp_def },
+        { label: "Speed", value: stats.speed }
+      ];
+
+      statBarsList.innerHTML = "";
+      for (const row of rows) {
+        const pct = Math.min(100, Math.round((row.value / 100) * 100));
+        const rowEl = document.createElement("div");
+        rowEl.className = "stat-row";
+        rowEl.innerHTML = `
+          <span class="stat-name">${row.label}</span>
+          <span class="stat-val">${row.value}</span>
+          <div class="stat-bar-bg">
+            <div class="stat-bar-fill" style="width: ${pct}%"></div>
+          </div>
+        `;
+        statBarsList.appendChild(rowEl);
+      }
+
+      baseStatsCard.classList.add("visible");
+    }
+
+    // Spin Roulette using Python's choose_random_bird() and fetch base stats from pokemon_stats.py
     async function handlePickBird() {
       if (!pyodide || isSpinning) return;
 
       isSpinning = true;
       pickBtn.disabled = true;
       clearCardHighlights();
+      baseStatsCard.classList.remove("visible");
 
-      // Hide previous winner name while spinning
       winnerBanner.classList.remove("has-winner");
       winnerLabel.textContent = "SEARCHING TALL GRASS...";
       winnerName.textContent = "???";
       winnerName.classList.add("placeholder");
 
       try {
-        // 1. Call Python's choose_random_bird() to get winning index (0..9)
+        // 1. Call original pokemon_picker.py choose_random_bird()
         const selectedBirdIndex = Number(pyodide.runPython("choose_random_bird()"));
         const numBirds = birdsList.length;
 
-        // Normalize starting position into cycle 1 (indices 10..19) so pictures always slide right-to-left
         const normalizedStartIndex = numBirds + (currentCardIndex % numBirds);
         const startX = getTranslateXForCardIndex(normalizedStartIndex);
         rouletteTrack.style.transform = `translate3d(${startX}px, 0, 0)`;
 
-        // Advance forward by 6 full cycles + offset to exact Python-selected Pokemon
         const forwardSteps = (6 * numBirds) + ((selectedBirdIndex - (normalizedStartIndex % numBirds) + numBirds) % numBirds);
         const targetCardIndex = normalizedStartIndex + forwardSteps;
         const targetX = getTranslateXForCardIndex(targetCardIndex);
@@ -1101,18 +1223,23 @@
         currentCardIndex = targetCardIndex;
         recenterTrackOnIndex(currentCardIndex);
 
-        // Highlight stopped card
         const winningCard = rouletteTrack.querySelector(`.roulette-card[data-card-index="${targetCardIndex}"]`);
         if (winningCard) {
           winningCard.classList.add("is-winner");
         }
 
-        // Display winner's name AFTER animation finishes
+        // 2. Display winner's name AFTER animation finishes
         const winnerBird = birdsList[selectedBirdIndex];
         winnerBanner.classList.add("has-winner");
         winnerLabel.textContent = `WILD POKEMON APPEARED! (DEX #${winnerBird.id})`;
         winnerName.textContent = winnerBird.name.toUpperCase();
         winnerName.classList.remove("placeholder");
+
+        // 3. Call new pokemon_stats.py get_pokemon_stats_json(dex_id)
+        pyodide.globals.set("selected_dex_id", winnerBird.id);
+        const statsJson = pyodide.runPython("get_pokemon_stats_json(selected_dex_id)");
+        const statsObj = JSON.parse(statsJson);
+        renderBaseStats(statsObj);
 
         hasPickedOnce = true;
         pickBtn.textContent = "PICK AGAIN";
@@ -1198,7 +1325,6 @@
       const critical = getSelectedValue("criticalGroup");
 
       try {
-        // Pass arguments safely via Pyodide globals and execute Python function
         pyodide.globals.set("in_L", L);
         pyodide.globals.set("in_P", P);
         pyodide.globals.set("in_A", A);
@@ -1232,7 +1358,6 @@
     // INITIALIZE PYODIDE & LOAD .PY FILES VIA FETCH
     // ==========================================
     async function initApp() {
-      // Render preview track immediately while Pyodide boots
       buildRouletteTrack(INITIAL_BIRDS_PREVIEW);
 
       try {
@@ -1242,25 +1367,27 @@
         });
 
         statusText.textContent = "Fetching Python scripts...";
-        const [pickerResp, calcResp] = await Promise.all([
+        const [pickerResp, statsResp, calcResp] = await Promise.all([
           fetch("./pokemon_picker.py"),
+          fetch("./pokemon_stats.py"),
           fetch("./damage_calculator.py")
         ]);
 
-        if (!pickerResp.ok || !calcResp.ok) {
-          throw new Error("Could not fetch pokemon_picker.py or damage_calculator.py.");
+        if (!pickerResp.ok || !statsResp.ok || !calcResp.ok) {
+          throw new Error("Could not fetch Python files.");
         }
 
-        const [pickerCode, calcCode] = await Promise.all([
+        const [pickerCode, statsCode, calcCode] = await Promise.all([
           pickerResp.text(),
+          statsResp.text(),
           calcResp.text()
         ]);
 
-        // Execute both Python files inside Pyodide
+        // Execute all three Python modules inside Pyodide
         await pyodide.runPythonAsync(pickerCode);
+        await pyodide.runPythonAsync(statsCode);
         await pyodide.runPythonAsync(calcCode);
 
-        // Load official bird list directly from Python's get_birds_json()
         const birdsJson = pyodide.runPython("get_birds_json()");
         birdsList = JSON.parse(birdsJson);
         buildRouletteTrack(birdsList);
