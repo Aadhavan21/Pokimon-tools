@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="theme-color" content="#0a1128" />
+  <title>POKEMON TOOLS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+  <style>
+    :root {
+      --bg-navy: #070d1f;
+      --bg-navy-grad: #0e1938;
+      --card-bg: #111f42;
+      --card-border: #253d7a;
+      --card-inner: #0b1530;
+      --blue-btn: #1d5bd6;
+      --blue-btn-hover: #296ef5;
+      --blue-btn-active: #1443a3;
+      --blue-btn-shadow: #0c2966;
+      --yellow-accent: #ffcb05;
+      --yellow-dark: #c7a008;
+      --yellow-glow: rgba(255, 203, 5, 0.38);
+      --text-white: #ffffff;
+      --text-muted: #9eb2db;
+      --danger-red: #ff4d5e;
+      --success-green: #2ee59d;
+      --tab-inactive: #132247;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, var(--bg-navy-grad) 0%, var(--bg-navy) 75%);
+      color: var(--text-white);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Subtle Pokeball grid pattern overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(rgba(255, 203, 5, 0.045) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 16px 14px 40px;
+    }
+
+    /* Header */
+    .site-header {
+      text-align: center;
+      background: linear-gradient(180deg, #162957 0%, #0e1b3d 100%);
+      border: 3px solid var(--yellow-accent);
+      border-radius: 16px;
+      padding: 18px 14px 16px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      margin-bottom: 14px;
+    }
+
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 203, 5, 0.14);
+      border: 1px solid rgba(255, 203, 5, 0.45);
+      color: var(--yellow-accent);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: 1.5px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .pokeball-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #ff3b4e 0% 46%, #111 46% 54%, #fff 54% 100%);
+      border: 1.5px solid #111;
+      display: inline-block;
+    }
+
+    .site-title {
+      margin: 0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1.2rem, 4.8vw, 1.85rem);
+      color: var(--yellow-accent);
+      text-shadow: 3px 3px 0 #1b356e, 0 0 18px rgba(255, 203, 5, 0.35);
+      letter-spacing: 1px;
+      line-height: 1.3;
+    }
+
+    /* Pyodide Status Bar */
+    .engine-status {
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(7, 13, 31, 0.65);
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--card-border);
+    }
+
+    .status-indicator {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--yellow-accent);
+      box-shadow: 0 0 8px var(--yellow-accent);
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    .status-indicator.ready {
+      background: var(--success-green);
+      box-shadow: 0 0 8px var(--success-green);
+      animation: none;
+    }
+
+    .status-indicator.error {
+      background: var(--danger-red);
+      box-shadow: 0 0 8px var(--danger-red);
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    /* Navigation Tabs */
+    .tabs-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      appearance: none;
+      border: 2px solid var(--card-border);
+      background: var(--tab-inactive);
+      color: var(--text-muted);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: clamp(0.88rem, 3.2vw, 1.05rem);
+      letter-spacing: 0.5px;
+      padding: 14px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.2;
+      transition: all 0.18s ease;
+      box-shadow: 0 4px 0 #091229;
+    }
+
+    .tab-btn:hover {
+      border-color: #3d63bd;
+      color: var(--text-white);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(180deg, #2463eb 0%, #1746b0 100%);
+      border-color: var(--yellow-accent);
+      color: var(--yellow-accent);
+      box-shadow: 0 4px 0 var(--yellow-dark), 0 0 18px rgba(255, 203, 5, 0.25);
+    }
+
+    .tab-btn:active {
+      transform: translateY(2px);
+    }
+
+    /* Tab Panels */
+    .tab-panel {
+      display: none;
+      animation: fadeIn 0.22s ease;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .panel-card {
+      background: var(--card-bg);
+      border: 2px solid var(--card-border);
+      border-radius: 16px;
+      padding: 18px 16px 22px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    .panel-heading {
+      margin: 0 0 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1.35rem;
+      letter-spacing: 0.6px;
+      color: var(--yellow-accent);
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .panel-subtitle {
+      margin: 0 0 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+    }
+
+    /* ==========================================
+       TAB 1: RANDOM POKEMON PICKER - ROUTE 1
+       ========================================== */
+    .winner-banner {
+      min-height: 62px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--card-inner);
+      border: 2px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      text-align: center;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .winner-banner.has-winner {
+      border-color: var(--yellow-accent);
+      box-shadow: 0 0 22px var(--yellow-glow);
+      background: linear-gradient(180deg, #162854 0%, #0d1836 100%);
+    }
+
+    .winner-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .winner-name {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1rem, 4.4vw, 1.45rem);
+      color: var(--yellow-accent);
+      text-shadow: 2px 2px 0 #132757;
+      min-height: 1.4em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .winner-name.placeholder {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-shadow: none;
+      letter-spacing: 0.5px;
+    }
+
+    /* Roulette Viewport */
+    .roulette-wrapper {
+      position: relative;
+      width: 100%;
+      height: 196px;
+      background: linear-gradient(180deg, #081026 0%, #101f45 50%, #081026 100%);
+      border: 3px solid #2b488f;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 18px;
+      box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.85);
+    }
+
+    /* Side dark vignette masks */
+    .roulette-wrapper::before,
+    .roulette-wrapper::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 44px;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .roulette-wrapper::before {
+      left: 0;
+      background: linear-gradient(90deg, rgba(7, 13, 31, 0.92) 0%, rgba(7, 13, 31, 0) 100%);
+    }
+
+    .roulette-wrapper::after {
+      right: 0;
+      background: linear-gradient(270deg, rgba(7, 13, 31, 0.92) 0%, rgba(7, 13, 31, 0) 100%);
+    }
+
+    /* Highlighted Center Target Frame */
+    .center-highlight {
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      left: 50%;
+      width: 156px;
+      transform: translateX(-50%);
+      border: 3px solid var(--yellow-accent);
+      border-radius: 12px;
+      background: radial-gradient(circle, rgba(255, 203, 5, 0.14) 0%, rgba(255, 203, 5, 0.03) 75%);
+      box-shadow: 0 0 20px rgba(255, 203, 5, 0.45), inset 0 0 14px rgba(255, 203, 5, 0.25);
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .center-pointer-top,
+    .center-pointer-bottom {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .center-pointer-top {
+      top: 0;
+      border-left: 11px solid transparent;
+      border-right: 11px solid transparent;
+      border-top: 12px solid var(--yellow-accent);
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+    }
+
+    .center-pointer-bottom {
+      bottom: 0;
+      border-left: 11px solid transparent;
+      border-right: 11px solid transparent;
+      border-bottom: 12px solid var(--yellow-accent);
+      filter: drop-shadow(0 -2px 4px rgba(0, 0, 0, 0.7));
+    }
+
+    .roulette-track {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      will-change: transform;
+      z-index: 2;
+    }
+
+    .roulette-card {
+      flex: 0 0 156px;
+      width: 156px;
+      height: 172px;
+      padding: 0 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .roulette-card-inner {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #172b5c 0%, #0f1d40 100%);
+      border: 2px solid #2c4a94;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .roulette-card.is-winner .roulette-card-inner {
+      border-color: var(--yellow-accent);
+      background: linear-gradient(180deg, #243f82 0%, #152857 100%);
+      box-shadow: 0 0 18px rgba(255, 203, 5, 0.45);
+      transform: scale(1.03);
+    }
+
+    .roulette-card img {
+      width: 128px;
+      height: 128px;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+      filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+    }
+
+    /* Primary Action Button */
+    .primary-btn {
+      width: 100%;
+      min-height: 58px;
+      appearance: none;
+      border: 2px solid var(--yellow-accent);
+      border-radius: 12px;
+      background: linear-gradient(180deg, var(--blue-btn-hover) 0%, var(--blue-btn) 100%);
+      color: var(--text-white);
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.85rem, 3.6vw, 1.05rem);
+      letter-spacing: 0.8px;
+      padding: 16px 18px;
+      cursor: pointer;
+      box-shadow: 0 5px 0 var(--blue-btn-shadow), 0 8px 20px rgba(0, 0, 0, 0.4);
+      transition: transform 0.1s ease, background 0.15s ease, opacity 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .primary-btn:hover:not(:disabled) {
+      background: linear-gradient(180deg, #387aff 0%, #2262e0 100%);
+    }
+
+    .primary-btn:active:not(:disabled) {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 var(--blue-btn-shadow);
+    }
+
+    .primary-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      border-color: #4f669c;
+    }
+
+    /* ==========================================
+       TAB 2: POKEMON DAMAGE CALCULATOR
+       ========================================== */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .input-group {
+      background: var(--card-inner);
+      border: 1.5px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .input-group label {
+      display: block;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.92rem;
+      letter-spacing: 0.4px;
+      color: var(--yellow-accent);
+      margin-bottom: 7px;
+      text-transform: uppercase;
+    }
+
+    .stat-input {
+      width: 100%;
+      height: 48px;
+      background: #14244b;
+      border: 2px solid #2d4b94;
+      border-radius: 9px;
+      color: var(--text-white);
+      font-family: 'Inter', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      padding: 0 12px;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .stat-input:focus {
+      border-color: var(--yellow-accent);
+      box-shadow: 0 0 0 3px rgba(255, 203, 5, 0.2);
+    }
+
+    .modifier-section {
+      background: var(--card-inner);
+      border: 1.5px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .modifier-title {
+      display: block;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      color: var(--yellow-accent);
+      margin-bottom: 9px;
+      text-transform: uppercase;
+    }
+
+    .option-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .option-row-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    @media (min-width: 560px) {
+      .option-row-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .choice-btn {
+      appearance: none;
+      min-height: 48px;
+      background: #15264f;
+      border: 2px solid #2b478c;
+      border-radius: 9px;
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 8px 6px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.25;
+      transition: all 0.15s ease;
+    }
+
+    .choice-btn span.mult {
+      font-size: 0.76rem;
+      color: #7b96cc;
+      margin-top: 2px;
+    }
+
+    .choice-btn.selected {
+      background: linear-gradient(180deg, #2463eb 0%, #1746b0 100%);
+      border-color: var(--yellow-accent);
+      color: var(--text-white);
+      box-shadow: 0 0 12px rgba(255, 203, 5, 0.25);
+    }
+
+    .choice-btn.selected span.mult {
+      color: var(--yellow-accent);
+    }
+
+    .error-box {
+      display: none;
+      background: rgba(255, 77, 94, 0.14);
+      border: 2px solid var(--danger-red);
+      color: #ffb3ba;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-top: 14px;
+      text-align: center;
+    }
+
+    .error-box.visible {
+      display: block;
+    }
+
+    .results-panel {
+      display: none;
+      margin-top: 18px;
+      background: linear-gradient(180deg, #142652 0%, #0b1633 100%);
+      border: 2px solid var(--yellow-accent);
+      border-radius: 14px;
+      padding: 16px 14px;
+      box-shadow: 0 0 24px rgba(255, 203, 5, 0.2);
+      animation: fadeIn 0.25s ease;
+    }
+
+    .results-panel.visible {
+      display: block;
+    }
+
+    .results-header {
+      text-align: center;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      color: var(--yellow-accent);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-result-box {
+      background: rgba(7, 13, 31, 0.72);
+      border: 1.5px solid #2b478c;
+      border-radius: 10px;
+      padding: 12px 6px;
+      text-align: center;
+    }
+
+    .stat-result-box.highlight {
+      border-color: var(--yellow-accent);
+      background: rgba(255, 203, 5, 0.08);
+    }
+
+    .stat-result-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .stat-result-value {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.9rem, 3.5vw, 1.2rem);
+      color: var(--text-white);
+      word-break: break-word;
+    }
+
+    .stat-result-box.highlight .stat-result-value {
+      color: var(--yellow-accent);
+    }
+
+    .rolls-caption {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 390px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .roulette-card {
+        flex: 0 0 140px;
+        width: 140px;
+      }
+      .center-highlight {
+        width: 140px;
+      }
+      .roulette-card img {
+        width: 114px;
+        height: 114px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Header -->
+    <header class="site-header">
+      <div class="header-badge">
+        <span class="pokeball-dot"></span>
+        <span>PYODIDE PYTHON ENGINE</span>
+      </div>
+      <h1 class="site-title">POKEMON TOOLS</h1>
+      <div class="engine-status" id="engineStatus" role="status" aria-live="polite">
+        <span class="status-indicator" id="statusDot"></span>
+        <span id="statusText">Loading Python 3 runtime...</span>
+      </div>
+    </header>
+
+    <!-- Two Tabs -->
+    <nav class="tabs-bar" role="tablist" aria-label="Pokemon Tools Tabs">
+      <button
+        type="button"
+        class="tab-btn active"
+        id="tabBtnPicker"
+        role="tab"
+        aria-selected="true"
+        aria-controls="panelPicker"
+      >
+        RANDOM POKEMON PICKER – ROUTE 1
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        id="tabBtnCalc"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panelCalc"
+      >
+        POKEMON DAMAGE CALCULATOR
+      </button>
+    </nav>
+
+    <!-- TAB 1: RANDOM POKEMON PICKER – ROUTE 1 -->
+    <main>
+      <section
+        class="tab-panel active"
+        id="panelPicker"
+        role="tabpanel"
+        aria-labelledby="tabBtnPicker"
+      >
+        <div class="panel-card">
+          <h2 class="panel-heading">Route 1 Bird Roulette</h2>
+          <p class="panel-subtitle">10 Regional First-Stage Birds &bull; 10% Equal Odds via Python <code>secrets</code></p>
+
+          <!-- Winner Display Above Roulette -->
+          <div class="winner-banner" id="winnerBanner">
+            <div class="winner-label" id="winnerLabel">STATUS</div>
+            <div class="winner-name placeholder" id="winnerName">PRESS PICK A BIRD TO SPIN</div>
+          </div>
+
+          <!-- Horizontal Roulette -->
+          <div class="roulette-wrapper" id="rouletteViewport" aria-label="Pokemon Roulette">
+            <div class="center-pointer-top"></div>
+            <div class="center-highlight"></div>
+            <div class="center-pointer-bottom"></div>
+            <div class="roulette-track" id="rouletteTrack"></div>
+          </div>
+
+          <!-- Action Button -->
+          <button type="button" class="primary-btn" id="pickBtn" disabled>
+            PICK A BIRD
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 2: POKEMON DAMAGE CALCULATOR -->
+      <section
+        class="tab-panel"
+        id="panelCalc"
+        role="tabpanel"
+        aria-labelledby="tabBtnCalc"
+      >
+        <div class="panel-card">
+          <h2 class="panel-heading">Gen 3 Damage Simulator</h2>
+          <p class="panel-subtitle">Simulates 1,000 random damage rolls (85%–100%) in Python</p>
+
+          <form id="damageForm" novalidate>
+            <div class="form-grid">
+              <div class="input-group">
+                <label for="inputLevel">Pokemon Level (L)</label>
+                <input
+                  type="number"
+                  id="inputLevel"
+                  class="stat-input"
+                  inputmode="numeric"
+                  min="1"
+                  step="1"
+                  value="50"
+                  required
+                />
+              </div>
+
+              <div class="input-group">
+                <label for="inputPower">Move Power (P)</label>
+                <input
+                  type="number"
+                  id="inputPower"
+                  class="stat-input"
+                  inputmode="numeric"
+                  min="1"
+                  step="1"
+                  value="80"
+                  required
+                />
+              </div>
+
+              <div class="input-group">
+                <label for="inputAttack">Attack / Sp. Atk (A)</label>
+                <input
+                  type="number"
+                  id="inputAttack"
+                  class="stat-input"
+                  inputmode="numeric"
+                  min="1"
+                  step="1"
+                  value="120"
+                  required
+                />
+              </div>
+
+              <div class="input-group">
+                <label for="inputDefense">Defense / Sp. Def (D)</label>
+                <input
+                  type="number"
+                  id="inputDefense"
+                  class="stat-input"
+                  inputmode="numeric"
+                  min="1"
+                  step="1"
+                  value="100"
+                  required
+                />
+              </div>
+            </div>
+
+            <!-- STAB Selection -->
+            <div class="modifier-section">
+              <span class="modifier-title">STAB (Same-Type Attack Bonus)</span>
+              <div class="option-row-2" id="stabGroup" role="radiogroup" aria-label="STAB">
+                <button type="button" class="choice-btn selected" data-value="1.5">
+                  Yes
+                  <span class="mult">1.5x</span>
+                </button>
+                <button type="button" class="choice-btn" data-value="1">
+                  No
+                  <span class="mult">1x</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Type Effectiveness Selection -->
+            <div class="modifier-section">
+              <span class="modifier-title">Type Effectiveness</span>
+              <div class="option-row-4" id="effectivenessGroup" role="radiogroup" aria-label="Type Effectiveness">
+                <button type="button" class="choice-btn" data-value="2">
+                  Super Effective
+                  <span class="mult">2x</span>
+                </button>
+                <button type="button" class="choice-btn selected" data-value="1">
+                  Normal
+                  <span class="mult">1x</span>
+                </button>
+                <button type="button" class="choice-btn" data-value="0.5">
+                  Not Very Effective
+                  <span class="mult">0.5x</span>
+                </button>
+                <button type="button" class="choice-btn" data-value="0.25">
+                  Extremely Not Effective
+                  <span class="mult">0.25x</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Critical Hit Selection -->
+            <div class="modifier-section">
+              <span class="modifier-title">Critical Hit</span>
+              <div class="option-row-2" id="criticalGroup" role="radiogroup" aria-label="Critical Hit">
+                <button type="button" class="choice-btn" data-value="2">
+                  Yes
+                  <span class="mult">2x</span>
+                </button>
+                <button type="button" class="choice-btn selected" data-value="1">
+                  No
+                  <span class="mult">1x</span>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="primary-btn" id="calcBtn" disabled>
+              CALCULATE DAMAGE
+            </button>
+          </form>
+
+          <!-- Validation / Python Error Box -->
+          <div class="error-box" id="calcError" role="alert"></div>
+
+          <!-- Results Box -->
+          <div class="results-panel" id="resultsPanel" aria-live="polite">
+            <div class="results-header">1,000 Damage Rolls Summary</div>
+            <div class="results-grid">
+              <div class="stat-result-box">
+                <div class="stat-result-label">Minimum Damage</div>
+                <div class="stat-result-value" id="resMin">-</div>
+              </div>
+              <div class="stat-result-box highlight">
+                <div class="stat-result-label">Average Damage</div>
+                <div class="stat-result-value" id="resAvg">-</div>
+              </div>
+              <div class="stat-result-box">
+                <div class="stat-result-label">Maximum Damage</div>
+                <div class="stat-result-value" id="resMax">-</div>
+              </div>
+            </div>
+            <div class="rolls-caption">Calculated directly in Python using Gen 3 integer flooring</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let pyodide = null;
+    let birdsList = [];
+    let isSpinning = false;
+    let hasPickedOnce = false;
+    let currentCardIndex = 0;
+
+    // Fallback list only used before Pyodide finishes loading so artwork preloads immediately
+    const INITIAL_BIRDS_PREVIEW = [
+      { name: "Pidgey", id: 16, gen: 1 },
+      { name: "Spearow", id: 21, gen: 1 },
+      { name: "Hoothoot", id: 163, gen: 2 },
+      { name: "Taillow", id: 276, gen: 3 },
+      { name: "Starly", id: 396, gen: 4 },
+      { name: "Pidove", id: 519, gen: 5 },
+      { name: "Fletchling", id: 661, gen: 6 },
+      { name: "Pikipek", id: 731, gen: 7 },
+      { name: "Rookidee", id: 821, gen: 8 },
+      { name: "Wattrel", id: 940, gen: 9 }
+    ];
+
+    const REPEATED_CYCLES = 12; // 120 cards in the track for smooth right-to-left scrolling
+
+    // DOM Elements
+    const statusDot = document.getElementById("statusDot");
+    const statusText = document.getElementById("statusText");
+    const tabBtnPicker = document.getElementById("tabBtnPicker");
+    const tabBtnCalc = document.getElementById("tabBtnCalc");
+    const panelPicker = document.getElementById("panelPicker");
+    const panelCalc = document.getElementById("panelCalc");
+
+    const rouletteViewport = document.getElementById("rouletteViewport");
+    const rouletteTrack = document.getElementById("rouletteTrack");
+    const winnerBanner = document.getElementById("winnerBanner");
+    const winnerLabel = document.getElementById("winnerLabel");
+    const winnerName = document.getElementById("winnerName");
+    const pickBtn = document.getElementById("pickBtn");
+
+    const damageForm = document.getElementById("damageForm");
+    const calcBtn = document.getElementById("calcBtn");
+    const calcError = document.getElementById("calcError");
+    const resultsPanel = document.getElementById("resultsPanel");
+    const resMin = document.getElementById("resMin");
+    const resAvg = document.getElementById("resAvg");
+    const resMax = document.getElementById("resMax");
+
+    // Tab switching
+    function switchTab(tabName) {
+      const isPicker = tabName === "picker";
+      tabBtnPicker.classList.toggle("active", isPicker);
+      tabBtnPicker.setAttribute("aria-selected", String(isPicker));
+      panelPicker.classList.toggle("active", isPicker);
+
+      tabBtnCalc.classList.toggle("active", !isPicker);
+      tabBtnCalc.setAttribute("aria-selected", String(!isPicker));
+      panelCalc.classList.toggle("active", !isPicker);
+
+      if (isPicker) {
+        recenterTrackOnIndex(currentCardIndex);
+      }
+    }
+
+    tabBtnPicker.addEventListener("click", () => switchTab("picker"));
+    tabBtnCalc.addEventListener("click", () => switchTab("calc"));
+
+    // Build Roulette Cards (NO Pokemon names displayed on cards!)
+    function getArtworkUrl(dexId) {
+      return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${dexId}.png`;
+    }
+
+    function buildRouletteTrack(birds) {
+      rouletteTrack.innerHTML = "";
+      const totalCards = birds.length * REPEATED_CYCLES;
+      for (let i = 0; i < totalCards; i++) {
+        const bird = birds[i % birds.length];
+        const card = document.createElement("div");
+        card.className = "roulette-card";
+        card.dataset.cardIndex = String(i);
+        card.dataset.birdIndex = String(i % birds.length);
+
+        const inner = document.createElement("div");
+        inner.className = "roulette-card-inner";
+
+        const img = document.createElement("img");
+        img.src = getArtworkUrl(bird.id);
+        img.alt = "Route 1 Pokemon";
+        img.loading = "eager";
+
+        inner.appendChild(img);
+        card.appendChild(inner);
+        rouletteTrack.appendChild(card);
+      }
+
+      // Position initially near start (index 10)
+      currentCardIndex = birds.length;
+      recenterTrackOnIndex(currentCardIndex);
+    }
+
+    function getCardWidth() {
+      const firstCard = rouletteTrack.querySelector(".roulette-card");
+      return firstCard ? firstCard.getBoundingClientRect().width : 156;
+    }
+
+    function getTranslateXForCardIndex(cardIndex) {
+      const viewportWidth = rouletteViewport.clientWidth;
+      const cardWidth = getCardWidth();
+      // Center of cardIndex aligns with center of viewport
+      return (viewportWidth / 2) - (cardIndex * cardWidth + cardWidth / 2);
+    }
+
+    function recenterTrackOnIndex(cardIndex) {
+      const x = getTranslateXForCardIndex(cardIndex);
+      rouletteTrack.style.transform = `translate3d(${x}px, 0, 0)`;
+    }
+
+    window.addEventListener("resize", () => {
+      if (!isSpinning && panelPicker.classList.contains("active")) {
+        recenterTrackOnIndex(currentCardIndex);
+      }
+    });
+
+    // Clear winner card highlight
+    function clearCardHighlights() {
+      const highlighted = rouletteTrack.querySelectorAll(".roulette-card.is-winner");
+      highlighted.forEach((el) => el.classList.remove("is-winner"));
+    }
+
+    // Smooth deceleration easing (quintic ease-out: fast start, gradual smooth slowdown)
+    function easeOutQuint(t) {
+      return 1 - Math.pow(1 - t, 5);
+    }
+
+    // Spin Roulette using Python's choose_random_bird()
+    async function handlePickBird() {
+      if (!pyodide || isSpinning) return;
+
+      isSpinning = true;
+      pickBtn.disabled = true;
+      clearCardHighlights();
+
+      // Hide previous winner name while spinning
+      winnerBanner.classList.remove("has-winner");
+      winnerLabel.textContent = "SEARCHING TALL GRASS...";
+      winnerName.textContent = "???";
+      winnerName.classList.add("placeholder");
+
+      try {
+        // 1. Call Python's choose_random_bird() to get winning index (0..9)
+        const selectedBirdIndex = Number(pyodide.runPython("choose_random_bird()"));
+        const numBirds = birdsList.length;
+
+        // Normalize starting position into cycle 1 (indices 10..19) so pictures always slide right-to-left
+        const normalizedStartIndex = numBirds + (currentCardIndex % numBirds);
+        const startX = getTranslateXForCardIndex(normalizedStartIndex);
+        rouletteTrack.style.transform = `translate3d(${startX}px, 0, 0)`;
+
+        // Advance forward by 6 full cycles + offset to exact Python-selected Pokemon
+        const forwardSteps = (6 * numBirds) + ((selectedBirdIndex - (normalizedStartIndex % numBirds) + numBirds) % numBirds);
+        const targetCardIndex = normalizedStartIndex + forwardSteps;
+        const targetX = getTranslateXForCardIndex(targetCardIndex);
+
+        const durationMs = 4200;
+        const startTime = performance.now();
+
+        await new Promise((resolve) => {
+          function animateFrame(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / durationMs, 1);
+            const eased = easeOutQuint(progress);
+            const currentX = startX + (targetX - startX) * eased;
+
+            rouletteTrack.style.transform = `translate3d(${currentX}px, 0, 0)`;
+
+            if (progress < 1) {
+              requestAnimationFrame(animateFrame);
+            } else {
+              resolve();
+            }
+          }
+          requestAnimationFrame(animateFrame);
+        });
+
+        currentCardIndex = targetCardIndex;
+        recenterTrackOnIndex(currentCardIndex);
+
+        // Highlight stopped card
+        const winningCard = rouletteTrack.querySelector(`.roulette-card[data-card-index="${targetCardIndex}"]`);
+        if (winningCard) {
+          winningCard.classList.add("is-winner");
+        }
+
+        // Display winner's name AFTER animation finishes
+        const winnerBird = birdsList[selectedBirdIndex];
+        winnerBanner.classList.add("has-winner");
+        winnerLabel.textContent = `WILD POKEMON APPEARED! (DEX #${winnerBird.id})`;
+        winnerName.textContent = winnerBird.name.toUpperCase();
+        winnerName.classList.remove("placeholder");
+
+        hasPickedOnce = true;
+        pickBtn.textContent = "PICK AGAIN";
+      } catch (err) {
+        winnerLabel.textContent = "ERROR";
+        winnerName.textContent = "FAILED TO PICK POKEMON";
+        console.error(err);
+      } finally {
+        isSpinning = false;
+        pickBtn.disabled = false;
+      }
+    }
+
+    pickBtn.addEventListener("click", handlePickBird);
+
+    // ==========================================
+    // TAB 2: OPTION BUTTON GROUPS & PYTHON CALC
+    // ==========================================
+    function setupChoiceGroup(groupId) {
+      const group = document.getElementById(groupId);
+      const buttons = group.querySelectorAll(".choice-btn");
+      buttons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          buttons.forEach((b) => b.classList.remove("selected"));
+          btn.classList.add("selected");
+        });
+      });
+    }
+
+    setupChoiceGroup("stabGroup");
+    setupChoiceGroup("effectivenessGroup");
+    setupChoiceGroup("criticalGroup");
+
+    function getSelectedValue(groupId) {
+      const selected = document.querySelector(`#${groupId} .choice-btn.selected`);
+      return selected ? parseFloat(selected.dataset.value) : 1;
+    }
+
+    function showCalcError(message) {
+      calcError.textContent = message;
+      calcError.classList.add("visible");
+      resultsPanel.classList.remove("visible");
+    }
+
+    function clearCalcError() {
+      calcError.textContent = "";
+      calcError.classList.remove("visible");
+    }
+
+    damageForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!pyodide) return;
+
+      clearCalcError();
+
+      const rawL = document.getElementById("inputLevel").value.trim();
+      const rawP = document.getElementById("inputPower").value.trim();
+      const rawA = document.getElementById("inputAttack").value.trim();
+      const rawD = document.getElementById("inputDefense").value.trim();
+
+      if (rawL === "" || rawP === "" || rawA === "" || rawD === "") {
+        showCalcError("Please enter values for Level, Move Power, Attack, and Defense.");
+        return;
+      }
+
+      const L = Number(rawL);
+      const P = Number(rawP);
+      const A = Number(rawA);
+      const D = Number(rawD);
+
+      if (!Number.isFinite(L) || !Number.isFinite(P) || !Number.isFinite(A) || !Number.isFinite(D)) {
+        showCalcError("All stat inputs must be valid numbers.");
+        return;
+      }
+
+      if (L <= 0 || P <= 0 || A <= 0 || D <= 0) {
+        showCalcError("Invalid input: Level, Move Power, Attack, and Defense must all be greater than 0.");
+        return;
+      }
+
+      const stab = getSelectedValue("stabGroup");
+      const effectiveness = getSelectedValue("effectivenessGroup");
+      const critical = getSelectedValue("criticalGroup");
+
+      try {
+        // Pass arguments safely via Pyodide globals and execute Python function
+        pyodide.globals.set("in_L", L);
+        pyodide.globals.set("in_P", P);
+        pyodide.globals.set("in_A", A);
+        pyodide.globals.set("in_D", D);
+        pyodide.globals.set("in_stab", stab);
+        pyodide.globals.set("in_effectiveness", effectiveness);
+        pyodide.globals.set("in_critical", critical);
+
+        const jsonResult = pyodide.runPython(
+          "calculate_damage_results_json(in_L, in_P, in_A, in_D, in_stab, in_effectiveness, in_critical)"
+        );
+        const parsed = JSON.parse(jsonResult);
+
+        resMin.textContent = parsed.minimum;
+        resAvg.textContent = parsed.average.toFixed(2);
+        resMax.textContent = parsed.maximum;
+
+        resultsPanel.classList.add("visible");
+      } catch (err) {
+        const msg = String(err.message || err);
+        if (msg.includes("All stats must be greater than zero")) {
+          showCalcError("All stats must be greater than zero.");
+        } else {
+          showCalcError("Calculation error: Please check your inputs and try again.");
+        }
+        console.error(err);
+      }
+    });
+
+    // ==========================================
+    // INITIALIZE PYODIDE & LOAD .PY FILES VIA FETCH
+    // ==========================================
+    async function initApp() {
+      // Render preview track immediately while Pyodide boots
+      buildRouletteTrack(INITIAL_BIRDS_PREVIEW);
+
+      try {
+        statusText.textContent = "Loading Pyodide Python 3...";
+        pyodide = await loadPyodide({
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/"
+        });
+
+        statusText.textContent = "Fetching Python scripts...";
+        const [pickerResp, calcResp] = await Promise.all([
+          fetch("./pokemon_picker.py"),
+          fetch("./damage_calculator.py")
+        ]);
+
+        if (!pickerResp.ok || !calcResp.ok) {
+          throw new Error("Could not fetch pokemon_picker.py or damage_calculator.py.");
+        }
+
+        const [pickerCode, calcCode] = await Promise.all([
+          pickerResp.text(),
+          calcResp.text()
+        ]);
+
+        // Execute both Python files inside Pyodide
+        await pyodide.runPythonAsync(pickerCode);
+        await pyodide.runPythonAsync(calcCode);
+
+        // Load official bird list directly from Python's get_birds_json()
+        const birdsJson = pyodide.runPython("get_birds_json()");
+        birdsList = JSON.parse(birdsJson);
+        buildRouletteTrack(birdsList);
+
+        statusDot.classList.add("ready");
+        statusText.textContent = "Python 3 Ready (Pyodide v0.27.7)";
+        pickBtn.disabled = false;
+        calcBtn.disabled = false;
+      } catch (err) {
+        statusDot.classList.add("error");
+        statusText.textContent = "Failed to load Python runtime. Serve over HTTP/GitHub Pages.";
+        console.error("Initialization error:", err);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+</html>
